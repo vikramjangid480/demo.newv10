@@ -75,14 +75,23 @@ function addBlog($db) {
             }
         }
         
+        // Handle second featured image upload
+        $featured_image_2 = null;
+        if (isset($_FILES['featured_image_2'])) {
+            $featured_image_2 = uploadFile($_FILES['featured_image_2']);
+            if (!$featured_image_2 && $_FILES['featured_image_2']['error'] !== UPLOAD_ERR_NO_FILE) {
+                sendResponse(['error' => 'Failed to upload second featured image'], 400);
+            }
+        }
+        
         // Generate excerpt if not provided
         if (!$excerpt && $content) {
             $excerpt = substr(strip_tags($content), 0, 200) . '...';
         }
         
         // Insert blog
-        $query = "INSERT INTO blogs (title, slug, content, excerpt, featured_image, category_id, tags, meta_title, meta_description, is_featured, status) 
-                  VALUES (:title, :slug, :content, :excerpt, :featured_image, :category_id, :tags, :meta_title, :meta_description, :is_featured, :status)";
+        $query = "INSERT INTO blogs (title, slug, content, excerpt, featured_image, featured_image_2, category_id, tags, meta_title, meta_description, is_featured, status) 
+                  VALUES (:title, :slug, :content, :excerpt, :featured_image, :featured_image_2, :category_id, :tags, :meta_title, :meta_description, :is_featured, :status)";
         
         $stmt = $db->prepare($query);
         $stmt->bindParam(':title', $title);
@@ -90,6 +99,7 @@ function addBlog($db) {
         $stmt->bindParam(':content', $content);
         $stmt->bindParam(':excerpt', $excerpt);
         $stmt->bindParam(':featured_image', $featured_image);
+        $stmt->bindParam(':featured_image_2', $featured_image_2);
         $stmt->bindParam(':category_id', $category_id, PDO::PARAM_INT);
         $stmt->bindParam(':tags', $tags);
         $stmt->bindParam(':meta_title', $meta_title);

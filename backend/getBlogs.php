@@ -231,6 +231,7 @@ function formatBlog($blog) {
         'content' => $blog['content'],
         'excerpt' => $blog['excerpt'],
         'featured_image' => $blog['featured_image'],
+        'featured_image_2' => $blog['featured_image_2'],
         'category_id' => (int)$blog['category_id'],
         'category_name' => $blog['category_name'],
         'category_slug' => $blog['category_slug'],

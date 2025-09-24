@@ -38,6 +38,7 @@ CREATE TABLE blogs (
     content LONGTEXT NOT NULL,
     excerpt TEXT,
     featured_image VARCHAR(255),
+    featured_image_2 VARCHAR(255),
     category_id INT,
     tags VARCHAR(500),
     meta_title VARCHAR(255),
