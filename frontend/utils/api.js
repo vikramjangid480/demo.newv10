@@ -1,11 +1,5 @@
 import axios from 'axios'
-
-// API base URL - works with Next.js environment variables and rewrites
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || (
-  typeof window !== 'undefined' 
-    ? '' // Use Next.js rewrites in browser
-    : 'http://localhost:8000' // Use direct URL for SSR
-)
+import { API_BASE_URL } from './config'
 
 // Make sure we always have a valid base URL, even in SSR
 if (!API_BASE_URL) {

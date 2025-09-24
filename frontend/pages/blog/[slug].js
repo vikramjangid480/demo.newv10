@@ -6,6 +6,7 @@ import { Calendar, Eye, Tag, ExternalLink, ChevronRight, Share2, Twitter, Facebo
 import Header from '../../components/Header'
 import Footer from '../../components/Footer'
 import { blogAPI, utils } from '../../utils/api'
+import { getImageUrl, BACKEND_URL } from '../../utils/config'
 
 // Use SSR for blog posts to avoid build issues
 export async function getServerSideProps({ params }) {
@@ -87,9 +88,13 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
       } else {
         setRelatedBooks([])
       }
+      setLoading(false)
     } catch (err) {
+      console.error('Error fetching blog:', err)
       if (err.status === 404) {
         setError('Blog post not found')
+      } else if (err.name === 'AxiosError') {
+        setError(`Network error: ${err.message}. Please check your connection and try again.`)
       } else {
         setError('Failed to load blog post. Please try again.')
       }
@@ -154,6 +159,16 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
   const handleFeedback = (type) => {
     setFeedback(type)
     // You can implement API call to save feedback here
+  }
+
+  // Helper function for handling image loading errors
+  const handleImageError = (e, fallbackAction = 'hide') => {
+    console.warn('Image failed to load:', e.target.src)
+    if (fallbackAction === 'hide') {
+      e.target.style.display = 'none'
+    } else if (fallbackAction === 'placeholder') {
+      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNjAgMTIwSDE2MC44TDIwMCAxNjBIMjQwTDIwMCAxMjBIMTYwWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
+    }
   }
 
   // Process content to add IDs to headings
@@ -224,7 +239,7 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
     return null
   }
 
-  const defaultImage = 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80'
+  // No default images - only show uploaded images from backend
   const readTime = calculateReadTime(blog.content)
 
   return (
@@ -235,7 +250,7 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
         <meta property="og:title" content={blog.title} />
         <meta property="og:description" content={blog.excerpt || blog.title} />
         <meta property="og:type" content="article" />
-        <meta property="og:image" content={blog.featured_image || defaultImage} />
+        {blog.featured_image && <meta property="og:image" content={getImageUrl(blog.featured_image)} />}
         <meta property="article:published_time" content={blog.created_at} />
         <meta property="article:author" content="Boganto" />
         {blog.tags && blog.tags.map((tag, index) => (
@@ -306,35 +321,68 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
           </div>
         </section>
 
-        {/* 2-Column Photo Grid */}
-        <section className="py-8">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="aspect-[4/3] overflow-hidden rounded-xl shadow-lg">
-                <img
-                  src={blog.featured_image || defaultImage}
-                  alt={blog.title}
-                  className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                  onError={(e) => {
-                    if (e.target.src !== defaultImage) {
-                      e.target.src = defaultImage
-                    }
-                  }}
-                />
-              </div>
-              <div className="aspect-[4/3] overflow-hidden rounded-xl shadow-lg">
-                <img
-                  src={blog.featured_image_2 || blog.featured_image || defaultImage}
-                  alt={`${blog.title} - Image 2`}
-                  className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                  onError={(e) => {
-                    e.target.src = defaultImage
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* Featured Image(s) Display Section */}
+        {(blog.featured_image || blog.featured_image_2) && (
+          <>
+            {/* Case 1: One Image - Large, Centered */}
+            {blog.featured_image && !blog.featured_image_2 && (
+              <section className="py-8">
+                <div className="max-w-3xl mx-auto rounded-xl overflow-hidden shadow-2xl">
+                  <img 
+                    src={getImageUrl(blog.featured_image)} 
+                    alt={blog.title} 
+                    className="w-full h-[400px] object-cover" 
+                    onError={(e) => handleImageError(e, 'hide')}
+                  />
+                </div>
+              </section>
+            )}
+
+            {/* Case 2: Two Images - Responsive Grid */}
+            {blog.featured_image && blog.featured_image_2 && (
+              <section className="py-8">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="aspect-[4/3] overflow-hidden rounded-xl shadow-lg">
+                      <img 
+                        src={getImageUrl(blog.featured_image)} 
+                        alt={blog.title} 
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+                        onError={(e) => {
+                          e.target.style.display = 'none'
+                        }}
+                      />
+                    </div>
+                    <div className="aspect-[4/3] overflow-hidden rounded-xl shadow-lg">
+                      <img 
+                        src={getImageUrl(blog.featured_image_2)} 
+                        alt={`${blog.title} - Image 2`} 
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+                        onError={(e) => {
+                          e.target.style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Case 3: Only Second Image (edge case) */}
+            {!blog.featured_image && blog.featured_image_2 && (
+              <section className="py-8">
+                <div className="max-w-3xl mx-auto rounded-xl overflow-hidden shadow-2xl">
+                  <img 
+                    src={getImageUrl(blog.featured_image_2)} 
+                    alt={blog.title} 
+                    className="w-full h-[400px] object-cover" 
+                    onError={(e) => handleImageError(e, 'hide')}
+                  />
+                </div>
+              </section>
+            )}
+          </>
+        )}
 
         {/* Article Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -446,7 +494,7 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
                     {relatedBooks.length > 0 ? relatedBooks.map((book) => (
                       <div key={book.id} className="flex gap-3 pb-4 border-b border-gray-100 last:border-b-0 last:pb-0">
                         <div className="w-12 h-16 bg-gray-200 rounded flex-shrink-0 bg-cover bg-center" 
-                             style={{backgroundImage: `url(${book.image || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=80&h=120&fit=crop&crop=center'})`}}>
+                             style={book.image ? {backgroundImage: `url(${getImageUrl(book.image)})`} : {}}>
                         </div>
                         <div className="flex-1 min-w-0">
                           <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">{book.title}</h5>
@@ -454,63 +502,10 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
                         </div>
                       </div>
                     )) : (
-                      // Static fallback books for design purposes
-                      <>
-                        <div className="flex gap-3 pb-4 border-b border-gray-100">
-                          <div className="w-12 h-16 bg-gray-200 rounded flex-shrink-0 bg-cover bg-center" 
-                               style={{backgroundImage: 'url(https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=80&h=120&fit=crop&crop=center)'}}>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">The Silent Patient</h5>
-                            <p className="text-orange-600 font-semibold text-sm">$24.99</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-3 pb-4 border-b border-gray-100">
-                          <div className="w-12 h-16 bg-gray-200 rounded flex-shrink-0 bg-cover bg-center" 
-                               style={{backgroundImage: 'url(https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=80&h=120&fit=crop&crop=center)'}}>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">Atomic Habits</h5>
-                            <p className="text-orange-600 font-semibold text-sm">$19.99</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-3 pb-4 border-b border-gray-100">
-                          <div className="w-12 h-16 bg-gray-200 rounded flex-shrink-0 bg-cover bg-center" 
-                               style={{backgroundImage: 'url(https://images.unsplash.com/photo-1592496431122-2349e0fbc666?w=80&h=120&fit=crop&crop=center)'}}>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">The Seven Moons</h5>
-                            <p className="text-orange-600 font-semibold text-sm">$22.50</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-3 pb-4 border-b border-gray-100">
-                          <div className="w-12 h-16 bg-gray-200 rounded flex-shrink-0 bg-cover bg-center" 
-                               style={{backgroundImage: 'url(https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=80&h=120&fit=crop&crop=center)'}}>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">Literary Journeys</h5>
-                            <p className="text-orange-600 font-semibold text-sm">$18.99</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-3 pb-4 border-b border-gray-100">
-                          <div className="w-12 h-16 bg-gray-200 rounded flex-shrink-0 bg-cover bg-center" 
-                               style={{backgroundImage: 'url(https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=80&h=120&fit=crop&crop=center)'}}>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">Science Books</h5>
-                            <p className="text-orange-600 font-semibold text-sm">$26.99</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-3">
-                          <div className="w-12 h-16 bg-gray-200 rounded flex-shrink-0 bg-cover bg-center" 
-                               style={{backgroundImage: 'url(https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=80&h=120&fit=crop&crop=center)'}}>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">Personal Library</h5>
-                            <p className="text-orange-600 font-semibold text-sm">$21.99</p>
-                          </div>
-                        </div>
-                      </>
+                      // No related books available - show empty state
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No related books available for this article.</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -530,14 +525,14 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
                   <article key={article.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
                     <Link href={`/blog/${article.slug}`}>
                       <div className="aspect-video relative">
-                        <img
-                          src={article.featured_image || defaultImage}
-                          alt={article.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.src = defaultImage
-                          }}
-                        />
+                        {article.featured_image && (
+                          <img
+                            src={getImageUrl(article.featured_image)}
+                            alt={article.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => handleImageError(e, 'hide')}
+                          />
+                        )}
                       </div>
                       <div className="p-6">
                         <h3 className="font-bold text-gray-900 mb-3 line-clamp-2 hover:text-orange-600 transition-colors">
